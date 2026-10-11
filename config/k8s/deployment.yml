@@ -1,0 +1,110 @@
+---
+# Сервис предсказаний в Kubernetes: init-контейнер забирает модель и справочник
+# фичей из S3, основной контейнер поднимает FastAPI.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: purchase-predictor
+  labels:
+    app: purchase-predictor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: purchase-predictor
+  template:
+    metadata:
+      labels:
+        app: purchase-predictor
+    spec:
+      serviceAccountName: purchase-predictor
+      initContainers:
+        # Скачиваем ranker.pkl и item_features.parquet в общий том
+        - name: model-loader
+          image: registry.gitlab.yandexcloud.net/s3504838/mlops_final_project_petrov_alexander:latest
+          command: ["python", "-c"]
+          args:
+            - |
+              from src.model import PurchaseRanker
+
+              ranker = PurchaseRanker.load("/app/artifacts", download=True)
+              print(f"Модель загружена, товаров в справочнике: {ranker.items}")
+          env:
+            - name: MODEL_DIR
+              value: /app/artifacts
+            - name: S3_ENDPOINT_URL
+              value: https://storage.yandexcloud.net
+            - name: S3_BUCKET
+              value: r-mlops-bucket-9-1-1-65671054
+            - name: S3_PREFIX
+              value: petrov_alexander_project
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          volumeMounts:
+            - name: artifacts
+              mountPath: /app/artifacts
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      containers:
+        - name: api
+          image: registry.gitlab.yandexcloud.net/s3504838/mlops_final_project_petrov_alexander:latest
+          ports:
+            - containerPort: 32000
+          env:
+            # Артефакты уже лежат в томе после init-контейнера
+            - name: MODEL_DIR
+              value: /app/artifacts
+            - name: S3_ENDPOINT_URL
+              value: https://storage.yandexcloud.net
+            - name: S3_BUCKET
+              value: r-mlops-bucket-9-1-1-65671054
+            - name: S3_PREFIX
+              value: petrov_alexander_project
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 32000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 32000
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: artifacts
+              mountPath: /app/artifacts
+      volumes:
+        - name: artifacts
+          emptyDir: {}

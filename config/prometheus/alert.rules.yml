@@ -1,0 +1,57 @@
+---
+# Правила алертов по сервису предсказаний.
+groups:
+  - name: purchase-predictor
+    rules:
+      - alert: ServiceDown
+        expr: up{job="purchase-predictor"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сервис предсказаний недоступен"
+          description: "Prometheus не может собрать метрики с api:32000 больше двух минут."
+
+      - alert: ModelNotLoaded
+        expr: model_loaded == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сервис работает без модели"
+          description: "Метрика model_loaded равна нулю: /health отвечает degraded."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(predict_requests_total{status=~"5.."}[5m]))
+          / sum(rate(predict_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Больше 5% запросов завершаются ошибкой"
+          description: "Проверьте, загружена ли модель и доступен ли S3."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(predict_latency_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "95-й перцентиль времени ответа выше 0.5 с"
+          description: "Предсказание стало отвечать медленнее обычного."
+
+      - alert: ManyUnknownItems
+        expr: |
+          sum(rate(predict_item_lookup_total{result="default"}[10m]))
+          / sum(rate(predict_item_lookup_total[10m])) > 0.5
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Больше половины товаров не найдены в справочнике"
+          description: "Справочник фичей мог устареть: стоит пересобрать данные и переобучить модель."

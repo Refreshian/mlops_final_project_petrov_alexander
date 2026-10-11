@@ -1,0 +1,18 @@
+---
+# Доступ к сервису внутри кластера.
+#   kubectl port-forward svc/purchase-predictor 32000:32000
+#   curl "http://127.0.0.1:32000/predict_purchase?itemid=356475&hour=14&weekday=3"
+apiVersion: v1
+kind: Service
+metadata:
+  name: purchase-predictor
+  labels:
+    app: purchase-predictor
+spec:
+  type: ClusterIP
+  selector:
+    app: purchase-predictor
+  ports:
+    - name: http
+      port: 32000
+      targetPort: 32000

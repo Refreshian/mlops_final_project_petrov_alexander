@@ -1,0 +1,52 @@
+---
+# Сервис предсказаний на виртуалке.
+#
+# Подготовка:
+#   cp .env.example .env && nano .env        # образ из реестра и ключи S3
+# Запуск:
+#   docker compose up -d
+# Проверка из задания:
+#   curl "http://127.0.0.1:8000/predict_purchase?itemid=356475&hour=14&weekday=3"
+#
+# Модель и справочник фичей товаров сервис сам забирает из S3 при старте
+# (переменные AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).
+
+services:
+  api:
+    image: ${IMAGE:-registry.gitlab.yandexcloud.net/s3504838/mlops_final_project_petrov_alexander:latest}
+    container_name: purchase-predictor
+    ports:
+      # 8000 — порт проверки из задания, 32000 — порт самого приложения
+      - "8000:32000"
+      - "32000:32000"
+    environment:
+      MODEL_DIR: /app/artifacts
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-https://storage.yandexcloud.net}
+      S3_BUCKET: ${S3_BUCKET:-r-mlops-bucket-9-1-1-65671054}
+      S3_PREFIX: ${S3_PREFIX:-petrov_alexander_project}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - artifacts:/app/artifacts
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:32000/health')
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - mlops
+
+volumes:
+  artifacts:
+
+networks:
+  # Общая сеть с мониторингом: Prometheus обращается к сервису по имени api:32000
+  mlops:
+    name: mlops

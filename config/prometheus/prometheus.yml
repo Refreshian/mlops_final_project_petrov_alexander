@@ -1,0 +1,25 @@
+---
+# Сбор метрик: сам Prometheus, сервис предсказаний и метрики виртуалки.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: purchase-predictor
+
+rule_files:
+  - alert.rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Метрики FastAPI-сервиса: /metrics отдаёт prometheus_client
+  - job_name: purchase-predictor
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:32000"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
