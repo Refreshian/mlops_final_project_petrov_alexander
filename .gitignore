@@ -1,0 +1,40 @@
+# Виртуальное окружение
+.venv/
+.python-version
+
+# Кэши линтеров и типизации
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Скомпилированные Python файлы
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Артефакты обучения и локальные данные
+*.pkl
+*.parquet
+artifacts/
+/data/
+tests/_build/
+
+# Файл с переменными окружения (секреты)
+.env
+.env.*
+!.env.example
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.bak
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Метаданные ОС
+.DS_Store
+Thumbs.db

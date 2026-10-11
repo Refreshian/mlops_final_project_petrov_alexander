@@ -1,0 +1,8 @@
+# Проект готовится на Windows, а запускается на Linux-стенде,
+# поэтому переводы строк во всех текстовых файлах приводим к LF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.parquet binary
+*.pkl binary
